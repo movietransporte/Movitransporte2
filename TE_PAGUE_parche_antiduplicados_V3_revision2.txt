@@ -1,0 +1,100 @@
+TE PAGUÉ — CORRECCIÓN PRECISA ANTIDUPLICADOS PARA LABORATORIO V3
+===================================================================
+
+OBJETIVO
+--------
+Evitar que una pestaña restaurada por Android vuelva a mostrar la alerta
+de un pago que ya fue registrado.
+
+REVISIÓN DEL HTML ORIGINAL
+--------------------------
+El HTML V3 ya comprueba:
+  timestamp + referencia
+
+El problema es que, aunque encuentra el pago existente, continúa ejecutando
+mostrarAlerta(...). Por eso vuelve a aparecer la confirmación verde.
+
+CORRECCIÓN RECOMENDADA
+---------------------
+En TE_PAGUE_laboratorio_v3.html, dentro de:
+
+window.addEventListener('load',()=>{
+
+Busca este bloque:
+
+    const ts=String(timestamp);
+    const yaExiste=historial.some(p=>String(p.timestamp)===ts && String(p.ref)===String(ref));
+    if(!yaExiste){
+      historial.unshift({
+        timestamp:ts,montoNum,montoStr:String(monto),ref:String(ref),nombre:String(nombre),
+        telefono:String(telefono),banco:String(banco),bancoDestino:String(bancoDestino),
+        concepto:String(concepto),estado:String(estado),idOperacion:String(idOperacion)
+      });
+      guardarHistorial();
+    }
+    mostrarAlerta(monto,ref,nombre,telefono);
+
+Sustitúyelo por este bloque:
+
+    const ts = String(timestamp);
+    const yaExiste = historial.some(
+      p => String(p.timestamp) === ts && String(p.ref) === String(ref)
+    );
+
+    if (yaExiste) {
+      // La pestaña restauró un pago ya procesado: no repetir la alerta.
+      window.history.replaceState({}, document.title, window.location.pathname);
+      actualizarInterfaz();
+      return;
+    }
+
+    historial.unshift({
+      timestamp: ts,
+      montoNum,
+      montoStr: String(monto),
+      ref: String(ref),
+      nombre: String(nombre),
+      telefono: String(telefono),
+      banco: String(banco),
+      bancoDestino: String(bancoDestino),
+      concepto: String(concepto),
+      estado: String(estado),
+      idOperacion: String(idOperacion)
+    });
+
+    if (!guardarHistorial()) {
+      historial.shift();
+      return;
+    }
+
+    mostrarAlerta(monto, ref, nombre, telefono);
+
+POR QUÉ ESTA VERSIÓN ES MÁS SEGURA
+----------------------------------
+- La URL restaurada conserva el mismo parámetro v (timestamp) enviado por
+  MacroDroid; por eso el pago repetido coincide con el registro original.
+- Si llega otro pago legítimo, MacroDroid genera otro timestamp y puede
+  registrarse aunque tenga el mismo monto o referencia.
+- No compara solamente referencia, monto y día, evitando bloquear pagos
+  legítimos que casualmente compartan esos datos.
+- No modifica CSS, diseño, colores, tamaños ni animaciones.
+- No modifica MacroDroid V12.
+
+PRUEBAS OBLIGATORIAS EN EL TELÉFONO
+----------------------------------
+1. Hacer un pago de prueba y comprobar que aparece una sola vez.
+2. Sin pulsar ENTENDIDO, salir al Home.
+3. Abrir aplicaciones recientes y restaurar la pestaña.
+4. Comprobar que NO aparece otra vez la alerta verde.
+5. Comprobar que el total y el historial no aumentan.
+6. Pulsar ENTENDIDO en el flujo normal y comprobar que funciona.
+7. Hacer un segundo pago real de prueba, incluso si el monto coincide,
+   y verificar que se registra como una operación nueva.
+
+PRECAUCIONES
+------------
+- Aplicar solamente sobre una COPIA de TE_PAGUE_laboratorio_v3.html.
+- Conservar intacto el HTML original.
+- No modificar MacroDroid V12.
+- No integrar en la versión estable hasta completar las pruebas.
+- Este archivo es una instrucción de parche; no es el HTML completo corregido.
