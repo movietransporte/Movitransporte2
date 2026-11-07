@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TE PAGUÉ - Caja (Laboratorio)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+:root{--bg-color:#0f172a;--card-bg:#1e293b;--text-main:#f8fafc;--text-muted:#94a3b8;--accent-color:#10b981;--accent-gradient:linear-gradient(135deg,#10b981 0%,#059669 100%);--danger-color:#ef4444}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg-color);color:var(--text-main);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#pantalla-historial{display:flex;flex-direction:column;height:100%;position:relative}
+.header-total{background:var(--card-bg);padding:25px 20px;border-bottom:1px solid rgba(255,255,255,.05);text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:10}
+.header-total h2{font-size:.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:5px}
+.total-monto{font-size:3.2rem;font-weight:900;color:var(--accent-color);line-height:1}
+.lista-pagos{flex:1;overflow-y:auto;padding:20px 20px 90px;display:flex;flex-direction:column;gap:12px}
+.item-pago{background:var(--card-bg);border-radius:16px;padding:16px;display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--accent-color);animation:slideIn .3s ease-out}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.item-info{display:flex;flex-direction:column;gap:4px}.item-hora{font-size:.75rem;color:var(--text-muted)}.item-ref{font-size:.85rem;color:#cbd5e1;font-family:monospace}.item-monto{font-size:1.4rem;font-weight:800;color:var(--accent-color);text-align:right}
+.vacio{text-align:center;color:var(--text-muted);margin-top:50px;font-size:.9rem}
+.barra-acciones{position:absolute;bottom:0;left:0;width:100%;background:#0f172ae6;backdrop-filter:blur(10px);padding:15px 20px;display:flex;gap:10px;border-top:1px solid rgba(255,255,255,.05);z-index:50}
+.btn-accion{flex:1;padding:15px;border-radius:12px;border:none;font-weight:800;font-size:.95rem;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:8px;transition:transform .1s}
+.btn-accion:active{transform:scale(.95)}.btn-cierre{background:#3b82f6;color:white}.btn-borrar{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+#alerta-pago{display:none;position:absolute;inset:0;background:var(--accent-gradient);flex-direction:column;align-items:center;justify-content:space-between;text-align:center;padding:40px 20px;z-index:100}
+.badge-pago{background:rgba(255,255,255,.2);padding:8px 16px;border-radius:20px;font-size:.85rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
+.monto-alerta{font-size:6rem;font-weight:900;line-height:1;letter-spacing:-2px;text-shadow:0 10px 20px rgba(0,0,0,.15)}.monto-alerta span{font-size:3rem;vertical-align:top;margin-right:5px}
+.card-alerta{background:rgba(0,0,0,.15);backdrop-filter:blur(10px);padding:20px;border-radius:20px;width:100%;max-width:350px;display:flex;flex-direction:column;gap:10px;border:1px solid rgba(255,255,255,.2)}
+.nombre-alerta{font-size:1.2rem;font-weight:800;text-transform:uppercase;display:none}.label-ref{font-size:.75rem;color:rgba(255,255,255,.8);text-transform:uppercase;font-weight:600;letter-spacing:1px}.valor-ref{font-size:1.8rem;font-weight:800;font-family:monospace;letter-spacing:2px}.valor-ref span{opacity:.6;font-size:1.2rem;margin-right:5px}
+.btn-cerrar{background:#fff;color:#047857;border:none;padding:18px 40px;border-radius:30px;font-size:1.1rem;font-weight:800;width:100%;max-width:350px;box-shadow:0 10px 25px rgba(0,0,0,.2);cursor:pointer}.btn-cerrar:active{transform:scale(.95)}
+#modal-cierre{display:none;position:absolute;inset:0;background:rgba(0,0,0,.8);z-index:150;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(5px)}
+.modal-contenido{background:var(--card-bg);width:100%;max-width:400px;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:15px;animation:zoomUp .3s ease}
+.modal-titulo{font-size:1.2rem;font-weight:800;color:white;display:flex;justify-content:space-between;align-items:center}.btn-cerrar-modal{background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer}
+.reporte-texto{width:100%;height:200px;background:#0f172a;color:#cbd5e1;border:1px solid #334155;border-radius:10px;padding:10px;font-family:monospace;font-size:.8rem;resize:none}
+.btn-copiar{background:var(--accent-color);color:white;border:none;padding:15px;border-radius:10px;font-weight:bold;font-size:1rem;cursor:pointer;width:100%}
+@keyframes zoomUp{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}.animate-zoom{animation:zoomUp .3s cubic-bezier(.16,1,.3,1) forwards}
+</style>
+</head>
+<body>
+<div id="pantalla-historial">
+  <div class="header-total"><h2>Total recaudado hoy</h2><div class="total-monto" id="txt-total">Bs. 0,00</div></div>
+  <div class="lista-pagos" id="lista-pagos"><div class="vacio">No hay transacciones registradas hoy.</div></div>
+  <div class="barra-acciones">
+    <button class="btn-accion btn-borrar" onclick="borrarHistorial()">🗑️ Borrar</button>
+    <button class="btn-accion btn-cierre" onclick="generarCierre()">📄 Generar Cierre</button>
+  </div>
+</div>
+<div id="alerta-pago">
+  <div style="display:flex;flex-direction:column;align-items:center;margin-top:20px" class="animate-zoom">
+    <div class="badge-pago">Pago recibido</div><div class="monto-alerta" id="txt-monto"><span>Bs.</span>0,00</div>
+  </div>
+  <div class="card-alerta animate-zoom" style="animation-delay:.1s">
+    <div class="nombre-alerta" id="txt-nombre">Nombre cliente</div>
+    <div><div class="label-ref">Referencia</div><div class="valor-ref" id="txt-referencia"><span>....</span>----</div></div>
+  </div>
+  <button class="btn-cerrar animate-zoom" style="animation-delay:.2s" onclick="cerrarAlerta()">ENTENDIDO</button>
+</div>
+<div id="modal-cierre">
+  <div class="modal-contenido">
+    <div class="modal-titulo"><span>Cierre de caja</span><button class="btn-cerrar-modal" onclick="cerrarModal()">&times;</button></div>
+    <textarea class="reporte-texto" id="texto-reporte" readonly></textarea>
+    <button class="btn-copiar" onclick="copiarReporte()">📋 Copiar para WhatsApp</button>
+  </div>
+</div>
+<script>
+'use strict';
+
+// LECTURA Y VALIDACIÓN DE MONTOS
+// Acepta: 350,00 | 350.00 | 1.500,00 | 14.783,26 | 1,500.00
+function parsearMonto(montoStr) {
+  if (montoStr === null || montoStr === undefined) return 0;
+  let s = String(montoStr).trim().replace(/\s/g, '').replace(/[^\d,.-]/g, '');
+  if (!s || !/\d/.test(s)) return 0;
+
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma !== -1 && lastDot !== -1) {
+    // El separador que aparece más a la derecha se interpreta como decimal.
+    const decimalSep = lastComma > lastDot ? ',' : '.';
+    const thousandsSep = decimalSep === ',' ? '.' : ',';
+    s = s.split(thousandsSep).join('');
+    if (decimalSep === ',') s = s.replace(',', '.');
+    // Si hubiera separadores repetidos del tipo decimal, se rechaza.
+    const parts = s.split('.');
+    if (parts.length > 2) return 0;
+  } else if (lastComma !== -1 || lastDot !== -1) {
+    const sep = lastComma !== -1 ? ',' : '.';
+    const parts = s.split(sep);
+    if (parts.length > 2) {
+      // Varios separadores iguales: se consideran miles solo si los grupos son de 3.
+      if (parts.slice(1).every(p => p.length === 3)) s = parts.join('');
+      else return 0;
+    } else if (parts.length === 2) {
+      // Un solo separador con 1-2 dígitos finales es decimal; con 3, miles.
+      if (parts[1].length === 3 && parts[0].length > 0) s = parts.join('');
+      else s = parts[0] + '.' + parts[1];
+    }
+  }
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 ? Math.round((n + Number.EPSILON) * 100) / 100 : 0;
+}
+
+function formatearMonto(n) {
+  return Number(n).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function obtenerParametro(nombre) {
+  return new URL(window.location.href).searchParams.get(nombre);
+}
+function leerHistorial() {
+  try {
+    const raw = localStorage.getItem('movi_historial');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(p => p && typeof p === 'object' &&
+      typeof p.timestamp === 'string' && Number.isFinite(Number(p.timestamp)) &&
+      Number.isFinite(Number(p.montoNum)) && Number(p.montoNum) >= 0 &&
+      typeof p.ref === 'string');
+  } catch (e) {
+    console.error('No se pudo leer el historial local:', e);
+    return [];
+  }
+}
+let historial = leerHistorial();
+
+function guardarHistorial() {
+  try {
+    localStorage.setItem('movi_historial', JSON.stringify(historial));
+    actualizarInterfaz();
+    return true;
+  } catch (e) {
+    console.error('No se pudo guardar el historial:', e);
+    alert('No se pudo guardar el pago en este dispositivo. Revisa el espacio disponible.');
+    return false;
+  }
+}
+function esDeHoy(pago, ahora = new Date()) {
+  const fecha = new Date(Number(pago.timestamp));
+  return Number.isFinite(fecha.getTime()) &&
+    fecha.getFullYear() === ahora.getFullYear() &&
+    fecha.getMonth() === ahora.getMonth() &&
+    fecha.getDate() === ahora.getDate();
+}
+function pagosDeHoy() {
+  return historial.filter(p => esDeHoy(p));
+}
+function referenciaCorta(ref) {
+  const texto = String(ref || '');
+  return texto.length > 4 ? texto.slice(-4) : texto.padStart(4, '0');
+}
+
+// Evita insertar los parámetros recibidos en HTML. Los valores se asignan como texto.
+function mostrarAlerta(monto, ref, nombre) {
+  const montoEl = document.getElementById('txt-monto');
+  montoEl.replaceChildren();
+  const prefijo = document.createElement('span');
+  prefijo.textContent = 'Bs.';
+  montoEl.append(prefijo, document.createTextNode(String(monto)));
+
+  document.getElementById('txt-referencia').lastChild.textContent = referenciaCorta(ref) || '----';
+  const nombreEl = document.getElementById('txt-nombre');
+  nombreEl.textContent = String(nombre || '');
+  nombreEl.style.display = nombre && String(nombre).trim() ? 'block' : 'none';
+  document.getElementById('alerta-pago').style.display = 'flex';
+  if (navigator.vibrate) navigator.vibrate([200,100,200]);
+}
+function cerrarAlerta() {
+  document.getElementById('alerta-pago').style.display = 'none';
+  // Se limpian parámetros para evitar volver a registrar el mismo pago al recargar.
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+function actualizarInterfaz() {
+  const lista = document.getElementById('lista-pagos');
+  const pagos = pagosDeHoy();
+  const total = pagos.reduce((s,p) => s + Number(p.montoNum), 0);
+  lista.replaceChildren();
+
+  if (!pagos.length) {
+    const vacio = document.createElement('div');
+    vacio.className = 'vacio';
+    vacio.textContent = 'No hay transacciones registradas hoy.';
+    lista.appendChild(vacio);
+  } else {
+    pagos.forEach(pago => {
+      const item = document.createElement('div');
+      item.className = 'item-pago';
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      const monto = document.createElement('div');
+      monto.className = 'item-monto';
+      monto.textContent = 'Bs. ' + String(pago.montoStr);
+      monto.style.textAlign = 'left';
+      const ref = document.createElement('div');
+      ref.className = 'item-ref';
+      ref.textContent = 'Ref: ....' + referenciaCorta(pago.ref);
+      const hora = document.createElement('div');
+      hora.className = 'item-hora';
+      hora.textContent = new Date(Number(pago.timestamp)).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      info.append(monto,ref,hora);
+      item.appendChild(info);
+      lista.appendChild(item);
+    });
+  }
+  document.getElementById('txt-total').textContent = 'Bs. ' + formatearMonto(total);
+}
+
+function generarCierre() {
+  const pagos = pagosDeHoy();
+  if (!pagos.length) { alert('No hay pagos registrados hoy para generar el cierre.'); return; }
+  const fecha = new Date().toLocaleDateString('es-VE');
+  let total = 0;
+  let texto = '🚌 *CIERRE DE CAJA - TE PAGUÉ* 🚌\n';
+  texto += '📅 Fecha: ' + fecha + '\n';
+  texto += '🧾 Operaciones: ' + pagos.length + '\n-------------------------\n';
+  [...pagos].reverse().forEach((pago,index) => {
+    total += Number(pago.montoNum);
+    const hora = new Date(Number(pago.timestamp)).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    texto += `${index+1}. Bs. ${pago.montoStr} | Ref: ...${referenciaCorta(pago.ref)} (${hora})\n`;
+  });
+  texto += '-------------------------\n';
+  texto += '💰 *TOTAL RECAUDADO: Bs. ' + formatearMonto(total) + '*\n\n';
+  texto += '_Generado automáticamente por TE PAGUÉ_';
+  document.getElementById('texto-reporte').value = texto;
+  document.getElementById('modal-cierre').style.display = 'flex';
+}
+function cerrarModal(){document.getElementById('modal-cierre').style.display='none';}
+async function copiarReporte(){
+  const textarea=document.getElementById('texto-reporte');
+  textarea.select();textarea.setSelectionRange(0,99999);
+  try {
+    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(textarea.value);
+    else if (!document.execCommand('copy')) throw new Error('Copia no disponible');
+    alert('¡Reporte copiado! Pégalo en WhatsApp.');
+  } catch(e) { alert('No se pudo copiar automáticamente. Mantén presionado el texto para copiarlo manualmente.'); }
+}
+function borrarHistorial(){
+  if(confirm('¿Estás seguro de que deseas borrar TODO el historial? Esta acción no se puede deshacer.')){
+    historial=[];
+    try { localStorage.removeItem('movi_historial'); actualizarInterfaz(); alert('Historial borrado.'); }
+    catch(e) { alert('No se pudo borrar el historial local.'); }
+  }
+}
+
+window.addEventListener('load',()=>{
+  actualizarInterfaz();
+  const monto=obtenerParametro('monto');
+  const ref=obtenerParametro('ref') || '----';
+  const nombre=obtenerParametro('nombre') || '';
+  const timestamp=obtenerParametro('v') || String(Date.now());
+
+  if(monto !== null && monto.trim() !== ''){
+    const montoNum=parsearMonto(monto);
+    if(montoNum <= 0){
+      alert('El monto recibido no es válido. No se registró el pago.');
+      return;
+    }
+    const ts=String(timestamp);
+    // Conserva la regla original: la misma referencia y el mismo timestamp no se registran dos veces.
+    const yaExiste=historial.some(p=>String(p.timestamp)===ts && String(p.ref)===String(ref));
+    if(!yaExiste){
+      historial.unshift({timestamp:ts,montoNum,montoStr:String(monto),ref:String(ref),nombre:String(nombre)});
+      guardarHistorial();
+    }
+    mostrarAlerta(monto,ref,nombre);
+  }
+});
+
+// Funciones expuestas para pruebas automatizadas en entorno Node.js.
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {parsearMonto, referenciaCorta, esDeHoy};
+}
+</script>
+</body>
+</html>
