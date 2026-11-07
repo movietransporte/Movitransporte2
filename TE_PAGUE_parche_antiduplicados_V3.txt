@@ -1,0 +1,132 @@
+TE PAGUÉ — PARCHE ANTIDUPLICADOS PARA LABORATORIO V3
+====================================================
+
+IMPORTANTE
+----------
+Este archivo contiene únicamente el parche JavaScript. No es el HTML completo.
+No modifica estilos, diseño, colores, tamaños ni MacroDroid.
+Aplícalo solamente sobre una COPIA de TE_PAGUE_laboratorio_v3.html.
+
+1) INSERTAR estas funciones después de referenciaCorta(ref):
+
+// Normaliza la referencia para comparar la referencia completa.
+function normalizarReferencia(ref) {
+  return String(ref || '').replace(/\D/g, '');
+}
+
+function claveDia(timestamp) {
+  const fecha = new Date(Number(timestamp));
+  if (!Number.isFinite(fecha.getTime())) return '';
+  return [
+    fecha.getFullYear(),
+    String(fecha.getMonth() + 1).padStart(2, '0'),
+    String(fecha.getDate()).padStart(2, '0')
+  ].join('-');
+}
+
+function buscarPagoDuplicado({ref, montoNum, timestamp, idOperacion}) {
+  const idNuevo = String(idOperacion || '').trim();
+  const refNueva = normalizarReferencia(ref);
+  const diaNuevo = claveDia(timestamp);
+
+  return historial.find(p => {
+    const idGuardado = String(p.idOperacion || '').trim();
+
+    // El identificador bancario tiene prioridad cuando existe en ambos pagos.
+    if (idNuevo && idGuardado && idNuevo === idGuardado) return true;
+
+    // Respaldo: referencia completa + monto + mismo día.
+    // No se compara la hora de activación porque MacroDroid puede cambiarla.
+    return Boolean(
+      refNueva &&
+      diaNuevo &&
+      normalizarReferencia(p.ref) === refNueva &&
+      Math.round(Number(p.montoNum) * 100) ===
+        Math.round(Number(montoNum) * 100) &&
+      claveDia(p.timestamp) === diaNuevo
+    );
+  });
+}
+
+function limpiarParametrosPago() {
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+
+2) EN cerrarAlerta(), sustituir esta línea:
+
+window.history.replaceState({}, document.title, window.location.pathname);
+
+por esta:
+
+limpiarParametrosPago();
+
+
+3) EN EL EVENTO window.addEventListener('load', ...), localizar desde:
+
+const ts=String(timestamp);
+
+hasta:
+
+mostrarAlerta(monto,ref,nombre,telefono);
+
+y sustituir ese bloque completo por:
+
+const ts = String(timestamp);
+const pagoDuplicado = buscarPagoDuplicado({
+  ref,
+  montoNum,
+  timestamp: ts,
+  idOperacion
+});
+
+if (pagoDuplicado) {
+  // No volver a sumar ni mostrar otra confirmación al restaurar/repetir el pago.
+  limpiarParametrosPago();
+  actualizarInterfaz();
+  return;
+}
+
+historial.unshift({
+  timestamp: ts,
+  montoNum,
+  montoStr: String(monto),
+  ref: String(ref),
+  nombre: String(nombre),
+  telefono: String(telefono),
+  banco: String(banco),
+  bancoDestino: String(bancoDestino),
+  concepto: String(concepto),
+  estado: String(estado),
+  idOperacion: String(idOperacion)
+});
+
+if (!guardarHistorial()) {
+  historial.shift();
+  return;
+}
+
+mostrarAlerta(monto, ref, nombre, telefono);
+
+
+4) PRUEBAS OBLIGATORIAS EN EL TELÉFONO
+-------------------------------------
+A. Recibir un pago real de prueba y comprobar que se registra una sola vez.
+B. Sin pulsar ENTENDIDO, salir a Home y restaurar la pestaña desde aplicaciones recientes.
+C. Confirmar que NO vuelve a aparecer la alerta verde y que el total no aumenta.
+D. Repetir la misma URL/notificación y comprobar que no duplica.
+E. Hacer otro pago con referencia distinta y comprobar que sí se registra.
+F. Revisar historial y comprobante.
+
+LÍMITES Y PRECAUCIONES
+----------------------
+- No tocar MacroDroid V12.
+- No reemplazar el HTML V3 original.
+- No integrar todavía en la versión estable.
+- La coincidencia de respaldo usa referencia completa, monto y día. Si el banco entrega
+  un identificador de operación estable, ese identificador es preferible.
+- Si dos operaciones legítimas del mismo día compartieran exactamente referencia y monto,
+  el respaldo podría confundirlas. Por eso hay que verificar el comportamiento con pagos
+  reales de prueba antes de aceptar esta corrección.
+
+Este parche todavía requiere integración en una copia del HTML y pruebas en Android.
