@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TE PAGUÉ - Caja (Laboratorio V4)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+:root{--bg-color:#0f172a;--card-bg:#1e293b;--text-main:#f8fafc;--text-muted:#94a3b8;--accent-color:#10b981;--accent-gradient:linear-gradient(135deg,#10b981 0%,#059669 100%);--danger-color:#ef4444}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg-color);color:var(--text-main);height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+#pantalla-historial{height:100%;min-height:0;padding-bottom:env(safe-area-inset-bottom, 0px)}
+#pantalla-historial{display:flex;flex-direction:column;height:100%;position:relative}
+.header-total{background:var(--card-bg);padding:25px 20px;border-bottom:1px solid rgba(255,255,255,.05);text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:10}
+.header-total h2{font-size:.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:5px}
+.total-monto{font-size:3.2rem;font-weight:900;color:var(--accent-color);line-height:1}
+.lista-pagos{flex:1;min-height:0;overflow-y:auto;padding:20px 20px 190px;display:flex;flex-direction:column;gap:12px}
+.item-pago{background:var(--card-bg);border-radius:16px;padding:16px;display:flex;justify-content:space-between;align-items:center;border-left:4px solid var(--accent-color);animation:slideIn .3s ease-out}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+.item-info{display:flex;flex-direction:column;gap:4px}.item-hora{font-size:.75rem;color:var(--text-muted)}.item-ref{font-size:.85rem;color:#cbd5e1;font-family:monospace}.item-monto{font-size:1.4rem;font-weight:800;color:var(--accent-color);text-align:right}
+.vacio{text-align:center;color:var(--text-muted);margin-top:50px;font-size:.9rem}
+.barra-acciones{position:fixed;bottom:max(72px, calc(env(safe-area-inset-bottom, 0px) + 60px));left:0;width:100%;background:#0f172af2;backdrop-filter:blur(10px);padding:12px 20px;display:flex;gap:10px;border-top:1px solid rgba(255,255,255,.05);z-index:50}
+.btn-accion{flex:1;padding:13px;border-radius:12px;border:none;font-weight:800;font-size:.95rem;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:8px;transition:transform .1s}
+.btn-accion:active{transform:scale(.95)}.btn-cierre{background:#3b82f6;color:white}.btn-borrar{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+#alerta-pago{display:none;position:absolute;inset:0;background:var(--accent-gradient);flex-direction:column;align-items:center;justify-content:space-between;text-align:center;padding:40px 20px;z-index:100}
+.badge-pago{background:rgba(255,255,255,.2);padding:8px 16px;border-radius:20px;font-size:.85rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
+.monto-alerta{font-size:6rem;font-weight:900;line-height:1;letter-spacing:-2px;text-shadow:0 10px 20px rgba(0,0,0,.15)}.monto-alerta span{font-size:3rem;vertical-align:top;margin-right:5px}
+.card-alerta{background:rgba(0,0,0,.15);backdrop-filter:blur(10px);padding:20px;border-radius:20px;width:100%;max-width:350px;display:flex;flex-direction:column;gap:10px;border:1px solid rgba(255,255,255,.2)}
+.nombre-alerta{font-size:1.2rem;font-weight:800;text-transform:uppercase;display:none}.label-ref{font-size:.75rem;color:rgba(255,255,255,.8);text-transform:uppercase;font-weight:600;letter-spacing:1px}.valor-ref{font-size:1.8rem;font-weight:800;font-family:monospace;letter-spacing:2px}.valor-ref span{opacity:.6;font-size:1.2rem;margin-right:5px}
+.btn-cerrar{background:#fff;color:#047857;border:none;padding:18px 40px;border-radius:30px;font-size:1.1rem;font-weight:800;width:100%;max-width:350px;box-shadow:0 10px 25px rgba(0,0,0,.2);cursor:pointer}.btn-cerrar:active{transform:scale(.95)}
+#modal-cierre{display:none;position:absolute;inset:0;background:rgba(0,0,0,.8);z-index:150;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(5px)}
+.modal-contenido{background:var(--card-bg);width:100%;max-width:400px;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:15px;animation:zoomUp .3s ease}
+.modal-titulo{font-size:1.2rem;font-weight:800;color:white;display:flex;justify-content:space-between;align-items:center}.btn-cerrar-modal{background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer}
+.reporte-texto{width:100%;height:200px;background:#0f172a;color:#cbd5e1;border:1px solid #334155;border-radius:10px;padding:10px;font-family:monospace;font-size:.8rem;resize:none}
+.btn-copiar{background:var(--accent-color);color:white;border:none;padding:15px;border-radius:10px;font-weight:bold;font-size:1rem;cursor:pointer;width:100%}
+#modal-comprobante{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:180;justify-content:center;align-items:center;padding:14px}
+.comprobante-contenido{background:var(--card-bg);width:100%;max-width:420px;max-height:85dvh;overflow:auto;border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:13px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.comprobante-campo{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid rgba(255,255,255,.08);padding:8px 0;font-size:.9rem}
+.comprobante-campo span:first-child{color:var(--text-muted);flex:0 0 42%}
+.comprobante-campo strong{text-align:right;overflow-wrap:anywhere}
+.item-pago{cursor:pointer}.item-pago:focus{outline:2px solid var(--accent-color);outline-offset:2px}
+.btn-comprobante-cerrar{background:var(--accent-color);color:white;border:0;border-radius:10px;padding:13px;font-weight:800;font-size:1rem}
+@keyframes zoomUp{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}.animate-zoom{animation:zoomUp .3s cubic-bezier(.16,1,.3,1) forwards}
+</style>
+</head>
+<body>
+<div id="pantalla-historial">
+  <div class="header-total"><h2>Total recaudado hoy</h2><div class="total-monto" id="txt-total">Bs. 0,00</div></div>
+  <div class="lista-pagos" id="lista-pagos"><div class="vacio">No hay transacciones registradas hoy.</div></div>
+  <div class="barra-acciones">
+    <button class="btn-accion btn-borrar" onclick="borrarHistorial()">🗑️ Borrar</button>
+    <button class="btn-accion btn-cierre" onclick="generarCierre()">📄 Generar Cierre</button>
+  </div>
+</div>
+<div id="alerta-pago">
+    <div class="alerta-contenido">
+        <div class="icono-exito">✓</div>
+        <h2>¡PAGO RECIBIDO!</h2>
+        <div class="monto-alerta" id="monto-alerta">Bs. 0,00</div>
+        <div class="referencia-alerta">
+            <span>REFERENCIA</span>
+            <strong id="ref-alerta">0000</strong>
+        </div>
+        <div class="datos-alerta">
+            <p id="nombre-alerta"></p>
+            <p id="telefono-alerta"></p>
+        </div>
+        <button onclick="cerrarAlerta()">ENTENDIDO</button>
+    </div>
+</div>
+
+<div id="modal-comprobante" class="modal">
+    <div class="modal-contenido">
+        <h2>Comprobante de pago</h2>
+        <div id="detalle-comprobante"></div>
+        <button onclick="cerrarComprobante()">CERRAR</button>
+    </div>
+</div>
+
+<div id="modal-confirmacion" class="modal">
+    <div class="modal-contenido">
+        <h2>Confirmar acción</h2>
+        <p id="texto-confirmacion"></p>
+        <button id="btn-confirmar">CONFIRMAR</button>
+        <button onclick="cerrarConfirmacion()">CANCELAR</button>
+    </div>
+</div>
+
+<script>
+const PARAMETROS = new URLSearchParams(window.location.search);
+
+function obtenerParametro(nombre, defecto = '') {
+    return PARAMETROS.get(nombre) || defecto;
+}
+
+function limpiarParametrosPago() {
+    window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+    );
+}
+
+let historial = [];
+let totalAcumulado = 0;
+
+try {
+    historial = JSON.parse(localStorage.getItem('movi_historial') || '[]');
+    if (!Array.isArray(historial)) historial = [];
+} catch (e) {
+    historial = [];
+}
+
+function guardarHistorial() {
+    try {
+        localStorage.setItem('movi_historial', JSON.stringify(historial));
+        return true;
+    } catch (e) {
+        console.error('No se pudo guardar el historial:', e);
+        return false;
+    }
+}
+
+function calcularTotal() {
+    totalAcumulado = historial.reduce(
+        (total, pago) => total + (Number(pago.montoNum) || 0),
+        0
+    );
+}
+
+function actualizarInterfaz() {
+    calcularTotal();
+
+    const totalElemento = document.getElementById('total-acumulado');
+    if (totalElemento) {
+        totalElemento.textContent = totalAcumulado.toFixed(2);
+    }
+
+    const lista = document.getElementById('lista-pagos');
+    if (!lista) return;
+
+    lista.innerHTML = '';
+
+    historial.forEach((pago, indice) => {
+        const elemento = document.createElement('div');
+        elemento.className = 'pago-item';
+
+        elemento.innerHTML = `
+            <div>
+                <strong>Bs. ${pago.montoStr || pago.montoNum || '0'}</strong>
+                <p>Ref: ${pago.ref || '—'}</p>
+                <small>${pago.nombre || 'Sin nombre'}</small>
+            </div>
+            <button onclick="verComprobante(${indice})">VER</button>
+        `;
+
+        lista.appendChild(elemento);
+    });
+}
+
+function mostrarAlerta(monto, ref, nombre, telefono) {
+    document.getElementById('monto-alerta').textContent = 'Bs. ' + monto;
+    document.getElementById('ref-alerta').textContent = ref || '—';
+    document.getElementById('nombre-alerta').textContent = nombre || '';
+    document.getElementById('telefono-alerta').textContent = telefono || '';
+
+    document.getElementById('alerta-pago').style.display = 'flex';
+}
+
+function cerrarAlerta() {
+    document.getElementById('alerta-pago').style.display = 'none';
+    limpiarParametrosPago();
+}
+
+function verComprobante(indice) {
+    const pago = historial[indice];
+    if (!pago) return;
+
+    const detalle = document.getElementById('detalle-comprobante');
+
+    detalle.innerHTML = `
+        <p><strong>Monto:</strong> Bs. ${pago.montoStr || pago.montoNum}</p>
+        <p><strong>Referencia:</strong> ${pago.ref || '—'}</p>
+        <p><strong>Nombre:</strong> ${pago.nombre || '—'}</p>
+        <p><strong>Teléfono:</strong> ${pago.telefono || '—'}</p>
+        <p><strong>Fecha:</strong> ${pago.timestamp || '—'}</p>
+    `;
+
+    document.getElementById('modal-comprobante').style.display = 'flex';
+}
+
+function cerrarComprobante() {
+    document.getElementById('modal-comprobante').style.display = 'none';
+}
+
+function cerrarConfirmacion() {
+    document.getElementById('modal-confirmacion').style.display = 'none';
+}
+
+function limpiarHistorial() {
+    if (!confirm('¿Deseas borrar todo el historial?')) return;
+
+    historial = [];
+    guardarHistorial();
+    actualizarInterfaz();
+}
+
+function exportarHistorial() {
+    const contenido = JSON.stringify(historial, null, 2);
+    const archivo = new Blob([contenido], {
+        type: 'application/json'
+    });
+
+    const url = URL.createObjectURL(archivo);
+    const enlace = document.createElement('a');
+
+    enlace.href = url;
+    enlace.download = 'historial_te_pague.json';
+    enlace.click();
+
+    URL.revokeObjectURL(url);
+}
+
+function volverInicio() {
+    limpiarParametrosPago();
+    actualizarInterfaz();
+}
+
+</script>
+<script>
+window.addEventListener('load', () => {
+
+    actualizarInterfaz();
+
+    const monto = obtenerParametro('monto');
+    const ref = obtenerParametro('ref');
+    const nombre = obtenerParametro('nombre');
+    const telefono = obtenerParametro('telefono');
+
+    const timestamp = obtenerParametro('v');
+    const banco = obtenerParametro('banco');
+    const bancoDestino = obtenerParametro('bancoDestino');
+    const concepto = obtenerParametro('concepto');
+    const estado = obtenerParametro('estado');
+    const idOperacion = obtenerParametro('idOperacion');
+
+    // Si no llegó un monto, no hay una operación que procesar.
+    if (!monto) {
+        return;
+    }
+
+    const montoLimpio = String(monto).replace(/\./g, '').replace(',', '.');
+    const montoNum = parseFloat(montoLimpio);
+
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+        limpiarParametrosPago();
+        return;
+    }
+
+    // La marca de tiempo y la referencia identifican esta operación.
+    const ts = String(timestamp || Date.now());
+
+    const yaExiste = historial.some(p =>
+        String(p.timestamp) === ts &&
+        String(p.ref) === String(ref)
+    );
+
+    // Si ya estaba registrada, no se vuelve a mostrar ni a sumar.
+    if (yaExiste) {
+        limpiarParametrosPago();
+        actualizarInterfaz();
+        return;
+    }
+
+    const nuevoPago = {
+        timestamp: ts,
+        montoNum: montoNum,
+        montoStr: String(monto),
+        ref: String(ref),
+        nombre: String(nombre),
+        telefono: String(telefono),
+        banco: String(banco),
+        bancoDestino: String(bancoDestino),
+        concepto: String(concepto),
+        estado: String(estado),
+        idOperacion: String(idOperacion)
+    };
+
+    historial.unshift(nuevoPago);
+
+    // Si no se puede guardar, se revierte el registro en memoria.
+    if (!guardarHistorial()) {
+        historial.shift();
+        limpiarParametrosPago();
+        actualizarInterfaz();
+        return;
+    }
+
+    actualizarInterfaz();
+
+    // Limpiamos la dirección antes de mostrar la alerta.
+    limpiarParametrosPago();
+
+    mostrarAlerta(monto, ref, nombre, telefono);
+});
+
+</script>
+</body>
+</html>
